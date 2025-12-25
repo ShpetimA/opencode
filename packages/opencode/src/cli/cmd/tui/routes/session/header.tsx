@@ -7,6 +7,8 @@ import { SplitBorder, EmptyBorder } from "@tui/component/border"
 import type { AssistantMessage, Session } from "@opencode-ai/sdk/v2"
 import { useDirectory } from "../../context/directory"
 import { useKeybind } from "../../context/keybind"
+import { useLocal } from "@/cli/cmd/tui/context/local"
+import { createColors, createFrames } from "@/cli/cmd/tui/ui/spinner"
 
 const Title = (props: { session: Accessor<Session> }) => {
   const { theme } = useTheme()
@@ -34,6 +36,8 @@ export function Header() {
   const session = createMemo(() => sync.session.get(route.sessionID)!)
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
   const shareEnabled = createMemo(() => sync.data.config.share !== "disabled")
+  const status = createMemo(() => sync.data.session_status?.[route.sessionID ?? ""] ?? { type: "idle" })
+  const spinnerFrames = ["▣", "▢"]
 
   const cost = createMemo(() => {
     const total = pipe(
@@ -77,21 +81,36 @@ export function Header() {
       >
         <Switch>
           <Match when={session()?.parentID}>
-            <box flexDirection="row" gap={2}>
-              <text fg={theme.text}>
-                <b>Subagent session</b>
-              </text>
-              <text fg={theme.text}>
-                Parent <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
-              </text>
-              <text fg={theme.text}>
-                Prev <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
-              </text>
-              <text fg={theme.text}>
-                Next <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
-              </text>
-              <box flexGrow={1} flexShrink={1} />
-              <ContextInfo context={context} cost={cost} />
+            <box>
+              <box flexDirection="row" gap={2} alignItems="center">
+                <box flexDirection="row" gap={1}>
+                  <Switch>
+                    <Match when={status().type !== "idle"}>
+                      {/* @ts-ignore // SpinnerOptions doesn't support marginLeft */}
+                      <spinner color={theme.primary} frames={spinnerFrames} interval={350} />
+                    </Match>
+                    <Match when={status().type === "idle"}>
+                      <text>
+                        <span style={{ fg: theme.primary }}>▣</span>
+                      </text>
+                    </Match>
+                  </Switch>
+                  <text fg={theme.text}>
+                    <b>Subagent session</b>
+                  </text>
+                </box>
+                <text fg={theme.text}>
+                  Parent <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
+                </text>
+                <text fg={theme.text}>
+                  Prev <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
+                </text>
+                <text fg={theme.text}>
+                  Next <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
+                </text>
+                <box flexGrow={1} flexShrink={1} />
+                <ContextInfo context={context} cost={cost} />
+              </box>
             </box>
           </Match>
           <Match when={true}>
